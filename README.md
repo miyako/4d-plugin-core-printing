@@ -1,6 +1,11 @@
 4d-plugin-core-printing
 =======================
 
+Platform
+--------
+4D Carbon 10.6+
+4D Cocoa 10.8+
+
 ```
 $orientation:=CP Get orientation 
 CP SET ORIENTATION ($orientation)
