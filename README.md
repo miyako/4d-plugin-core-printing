@@ -3,8 +3,8 @@
 
 Platform
 --------
-4D Carbon 10.6+
-4D Cocoa 10.8+
+* 4D Carbon 10.6+
+* 4D Cocoa 10.8+
 
 ```
 $orientation:=CP Get orientation 
