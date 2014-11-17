@@ -11,6 +11,12 @@
 
 #include "4DPluginAPI.h"
 
+#if VERSIONMAC
+#import <CoreFoundation/CoreFoundation.h>
+#import <Cocoa/Cocoa.h>
+#import <AppKit/AppKit.h>
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -43,8 +49,12 @@ extern "C" {
 		void setUTF16String(NSString* pString);
 		NSMutableString* copyUTF16MutableString();
 		NSString* copyUTF16String();
-		bool convertPathSystemToPOSIX();
-		bool convertPathPOSIXToSystem();		
+		NSString* copyPath();
+		void convertPath();
+		void setPath(NSString* path);		
+		NSURL *copyUrl();
+		NSString* copyUrlString();
+		NSString* copyPathString();		
 #endif
 #endif
 		
@@ -57,6 +67,8 @@ extern "C" {
 		void copyUTF16String(CUTF16String* pString);			
 		void copyUTF8String(CUTF8String* pString);
 	
+		void copyPath(CUTF8String* pString);
+		
 		C_TEXT();
 		~C_TEXT();
 		
