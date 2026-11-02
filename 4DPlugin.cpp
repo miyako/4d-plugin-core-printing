@@ -23,7 +23,13 @@ void PluginMain(PA_long32 selector, PA_PluginParameters params)
 		sLONG_PTR *pResult = (sLONG_PTR *)params->fResult;
 		PackagePtr pParams = (PackagePtr)params->fParameters;
 
-		CommandDispatcher(pProcNum, pResult, pParams); 
+		// PM* data, -dataUsingEncoding: and friends return autoreleased
+		// objects; drain them per call instead of piling them up in a
+		// 4D process that may never return to a run loop.
+		@autoreleasepool
+		{
+			CommandDispatcher(pProcNum, pResult, pParams);
+		}
 	}
 	catch(...)
 	{
@@ -146,8 +152,9 @@ void CP_Get_orientation(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_LONGINT returnValue;
     
-    PMOrientation orientation;
-    if(PMGetOrientation(PMPageFormatCurrent, &orientation) == noErr)
+    PMPageFormat format = PMPageFormatCurrent;
+    PMOrientation orientation = 0;
+    if(format && PMGetOrientation(format, &orientation) == noErr)
         returnValue.setIntValue(orientation);
     
     returnValue.setReturn(pResult);
@@ -159,16 +166,19 @@ void CP_SET_ORIENTATION(sLONG_PTR *pResult, PackagePtr pParams)
     
     Arg1.fromParamAtIndex(pParams, 1);
     
+    PMPageFormat format = PMPageFormatCurrent;
     PMOrientation orientation = Arg1.getIntValue();
-    PMSetOrientation(PMPageFormatCurrent, orientation, kPMUnlocked);
+    if(format)
+        PMSetOrientation(format, orientation, kPMUnlocked);
 }
 
 void CP_Get_scale(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_REAL returnValue;
     
-    double scale;
-    if(PMGetScale(PMPageFormatCurrent, &scale) == noErr)
+    PMPageFormat format = PMPageFormatCurrent;
+    double scale = 0;
+    if(format && PMGetScale(format, &scale) == noErr)
         returnValue.setDoubleValue(scale);
     
     returnValue.setReturn(pResult);
@@ -180,8 +190,10 @@ void CP_SET_SCALE(sLONG_PTR *pResult, PackagePtr pParams)
     
     Arg1.fromParamAtIndex(pParams, 1);
     
+    PMPageFormat format = PMPageFormatCurrent;
     double scale = Arg1.getDoubleValue();
-    PMSetScale(PMPageFormatCurrent, scale);
+    if(format)
+        PMSetScale(format, scale);
 }
 
 // -------------------------------- Print Settings --------------------------------
@@ -191,8 +203,9 @@ void CP_Get_copies(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_LONGINT returnValue;
     
-    UInt32 copies;
-    if(PMGetCopies(PMPrintSettingsCurrent, &copies) == noErr)
+    PMPrintSettings settings = PMPrintSettingsCurrent;
+    UInt32 copies = 0;
+    if(settings && PMGetCopies(settings, &copies) == noErr)
         returnValue.setIntValue(copies);
     
     returnValue.setReturn(pResult);
@@ -204,16 +217,19 @@ void CP_SET_COPIES(sLONG_PTR *pResult, PackagePtr pParams)
     
     Arg1.fromParamAtIndex(pParams, 1);
     
+    PMPrintSettings settings = PMPrintSettingsCurrent;
     UInt32 copies = Arg1.getIntValue();
-    PMSetCopies(PMPrintSettingsCurrent, copies, kPMUnlocked);	
+    if(settings)
+        PMSetCopies(settings, copies, kPMUnlocked);
 }
 
 void CP_Get_first_page(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_LONGINT returnValue;
     
-    UInt32 first;
-    if(PMGetFirstPage(PMPrintSettingsCurrent, &first) == noErr)
+    PMPrintSettings settings = PMPrintSettingsCurrent;
+    UInt32 first = 0;
+    if(settings && PMGetFirstPage(settings, &first) == noErr)
         returnValue.setIntValue(first);
     
     returnValue.setReturn(pResult);
@@ -225,16 +241,19 @@ void CP_SET_FIRST_PAGE(sLONG_PTR *pResult, PackagePtr pParams)
     
     Arg1.fromParamAtIndex(pParams, 1);
     
+    PMPrintSettings settings = PMPrintSettingsCurrent;
     UInt32 first = Arg1.getIntValue();
-    PMSetFirstPage(PMPrintSettingsCurrent, first, kPMUnlocked);
+    if(settings)
+        PMSetFirstPage(settings, first, kPMUnlocked);
 }
 
 void CP_get_last_page(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_LONGINT returnValue;
     
-    UInt32 last;
-    if(PMGetLastPage(PMPrintSettingsCurrent, &last) == noErr)
+    PMPrintSettings settings = PMPrintSettingsCurrent;
+    UInt32 last = 0;
+    if(settings && PMGetLastPage(settings, &last) == noErr)
         returnValue.setIntValue(last);
     
     returnValue.setReturn(pResult);
@@ -246,16 +265,19 @@ void CP_SET_LAST_PAGE(sLONG_PTR *pResult, PackagePtr pParams)
     
     Arg1.fromParamAtIndex(pParams, 1);
     
+    PMPrintSettings settings = PMPrintSettingsCurrent;
     UInt32 last = Arg1.getIntValue();
-    PMSetLastPage(PMPrintSettingsCurrent, last, kPMUnlocked);
+    if(settings)
+        PMSetLastPage(settings, last, kPMUnlocked);
 }
 
 void CP_get_job_name(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_TEXT returnValue;
     
-    CFStringRef job;
-    if(PMPrintSettingsGetJobName(PMPrintSettingsCurrent, &job) == noErr)
+    PMPrintSettings settings = PMPrintSettingsCurrent;
+    CFStringRef job = NULL; // Get rule: not owned, do not release
+    if(settings && PMPrintSettingsGetJobName(settings, &job) == noErr && job)
         returnValue.setUTF16String((NSString *)job);
     
     returnValue.setReturn(pResult);
@@ -267,8 +289,10 @@ void CP_SET_JOB_NAME(sLONG_PTR *pResult, PackagePtr pParams)
     
     Arg1.fromParamAtIndex(pParams, 1);
     
+    PMPrintSettings settings = PMPrintSettingsCurrent;
     CFStringRef job = (CFStringRef)Arg1.copyUTF16String();
-    PMPrintSettingsSetJobName(PMPrintSettingsCurrent, job);
+    if(settings)
+        PMPrintSettingsSetJobName(settings, job);
     CFRelease(job);
 }
 
@@ -276,8 +300,9 @@ void CP_get_duplex(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_LONGINT returnValue;
     
-    PMDuplexMode duplex;
-    if(PMGetDuplex(PMPrintSettingsCurrent, &duplex) == noErr)
+    PMPrintSettings settings = PMPrintSettingsCurrent;
+    PMDuplexMode duplex = 0;
+    if(settings && PMGetDuplex(settings, &duplex) == noErr)
         returnValue.setIntValue(duplex);
     
     returnValue.setReturn(pResult);
@@ -289,16 +314,19 @@ void CP_SET_DUPLEX(sLONG_PTR *pResult, PackagePtr pParams)
     
     Arg1.fromParamAtIndex(pParams, 1);
     
+    PMPrintSettings settings = PMPrintSettingsCurrent;
     PMDuplexMode duplex = Arg1.getIntValue();
-    PMSetDuplex(PMPrintSettingsCurrent, duplex);
+    if(settings)
+        PMSetDuplex(settings, duplex);
 }
 
 void CP_get_collate(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_LONGINT returnValue;
     
-    Boolean collate;
-    if(PMGetCollate(PMPrintSettingsCurrent, &collate) == noErr)
+    PMPrintSettings settings = PMPrintSettingsCurrent;
+    Boolean collate = false;
+    if(settings && PMGetCollate(settings, &collate) == noErr)
         returnValue.setIntValue(collate);
     
     returnValue.setReturn(pResult);
@@ -310,8 +338,10 @@ void CP_SET_COLLATE(sLONG_PTR *pResult, PackagePtr pParams)
     
     Arg1.fromParamAtIndex(pParams, 1);
     
-    Boolean collate = Arg1.getIntValue();
-    PMSetCollate(PMPrintSettingsCurrent, collate);
+    PMPrintSettings settings = PMPrintSettingsCurrent;
+    Boolean collate = Arg1.getIntValue() != 0;
+    if(settings)
+        PMSetCollate(settings, collate);
 }
 
 // ------------------------------------ Printer -----------------------------------
@@ -322,21 +352,24 @@ void CP_GET_PRINTER_LIST(sLONG_PTR *pResult, PackagePtr pParams)
     ARRAY_TEXT Arg1;
     ARRAY_TEXT Arg2;
     
-    CFArrayRef printers;
+    CFArrayRef printers = NULL;
     
     Arg1.setSize(1);
     Arg2.setSize(1);
     
-    if(PMServerCreatePrinterList(kPMServerLocal, &printers) == noErr)
-    {		
-        int i, count;
+    if(PMServerCreatePrinterList(kPMServerLocal, &printers) == noErr && printers)
+    {
+        CFIndex count = CFArrayGetCount(printers);
         
-        count = CFArrayGetCount(printers);
-        
-        for(i = 0; i < count; i++)
+        for(CFIndex i = 0; i < count; i++)
         {
-            Arg1.appendUTF16String((NSString *)PMPrinterGetID((PMPrinter)CFArrayGetValueAtIndex(printers, i)));
-            Arg2.appendUTF16String((NSString *)PMPrinterGetName((PMPrinter)CFArrayGetValueAtIndex(printers, i)));
+            PMPrinter printer = (PMPrinter)CFArrayGetValueAtIndex(printers, i);
+            CFStringRef printerId = PMPrinterGetID(printer);
+            CFStringRef printerName = PMPrinterGetName(printer);
+            // append an empty string rather than nothing, so that the two
+            // arrays stay aligned element by element
+            Arg1.appendUTF16String(printerId ? (NSString *)printerId : @"");
+            Arg2.appendUTF16String(printerName ? (NSString *)printerName : @"");
         }
         CFRelease(printers);
     }
@@ -349,23 +382,24 @@ void CP_get_default_printer(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_TEXT returnValue;
     
-    CFArrayRef printers;
+    CFArrayRef printers = NULL;
     
-    if(PMServerCreatePrinterList(kPMServerLocal, &printers) == noErr)
-    {	
-        int i, count;
+    if(PMServerCreatePrinterList(kPMServerLocal, &printers) == noErr && printers)
+    {
+        CFIndex count = CFArrayGetCount(printers);
         
-        count = CFArrayGetCount(printers);
-        
-        for(i = 0; i < count; i++)
+        for(CFIndex i = 0; i < count; i++)
         {
-            if(PMPrinterIsDefault((PMPrinter)CFArrayGetValueAtIndex(printers, i)))
+            PMPrinter printer = (PMPrinter)CFArrayGetValueAtIndex(printers, i);
+            if(PMPrinterIsDefault(printer))
             {
-                returnValue.setUTF16String((NSString *)PMPrinterGetID((PMPrinter)CFArrayGetValueAtIndex(printers, i)));
-                break;			
+                CFStringRef printerId = PMPrinterGetID(printer);
+                if(printerId)
+                    returnValue.setUTF16String((NSString *)printerId);
+                break;
             }
         }
-        CFRelease(printers);		
+        CFRelease(printers);
     }
     
     returnValue.setReturn(pResult);
@@ -377,25 +411,24 @@ void CP_SET_DEFAULT_PRINTER(sLONG_PTR *pResult, PackagePtr pParams)
     
     Arg1.fromParamAtIndex(pParams, 1);
     
-    NSString *printer =	Arg1.copyUTF16String();
+    NSString *printer = Arg1.copyUTF16String();
     
-    CFArrayRef printers;
+    CFArrayRef printers = NULL;
     
-    if(PMServerCreatePrinterList(kPMServerLocal, &printers) == noErr)
-    {	
-        int i, count;
+    if(PMServerCreatePrinterList(kPMServerLocal, &printers) == noErr && printers)
+    {
+        CFIndex count = CFArrayGetCount(printers);
         
-        count = CFArrayGetCount(printers);
-        
-        for(i = 0; i < count; i++)
+        for(CFIndex i = 0; i < count; i++)
         {
-            if([printer isEqualToString:(NSString *)PMPrinterGetID((PMPrinter)CFArrayGetValueAtIndex(printers, i))])
+            PMPrinter p = (PMPrinter)CFArrayGetValueAtIndex(printers, i);
+            if([printer isEqualToString:(NSString *)PMPrinterGetID(p)])
             {
-                PMPrinterSetDefault((PMPrinter)CFArrayGetValueAtIndex(printers, i));
-                break;				
+                PMPrinterSetDefault(p);
+                break;
             }
         }
-        CFRelease(printers);		
+        CFRelease(printers);
     }
     [printer release];
 }
@@ -407,28 +440,27 @@ void CP_get_printer_state(sLONG_PTR *pResult, PackagePtr pParams)
     
     Arg1.fromParamAtIndex(pParams, 1);
     
-    NSString *printer =	Arg1.copyUTF16String();
+    NSString *printer = Arg1.copyUTF16String();
     
-    CFArrayRef printers;
+    CFArrayRef printers = NULL;
     
-    if(PMServerCreatePrinterList(kPMServerLocal, &printers) == noErr)
-    {	
-        int i, count;
+    if(PMServerCreatePrinterList(kPMServerLocal, &printers) == noErr && printers)
+    {
+        CFIndex count = CFArrayGetCount(printers);
         
-        count = CFArrayGetCount(printers);
-        
-        for(i = 0; i < count; i++)
+        for(CFIndex i = 0; i < count; i++)
         {
-            if([printer isEqualToString:(NSString *)PMPrinterGetID((PMPrinter)CFArrayGetValueAtIndex(printers, i))])
+            PMPrinter p = (PMPrinter)CFArrayGetValueAtIndex(printers, i);
+            if([printer isEqualToString:(NSString *)PMPrinterGetID(p)])
             {
-                PMPrinterState state;
-                PMPrinterGetState((PMPrinter)CFArrayGetValueAtIndex(printers, i), &state);
-                returnValue.setIntValue(state);	
-                break;				
+                PMPrinterState state = 0;
+                if(PMPrinterGetState(p, &state) == noErr)
+                    returnValue.setIntValue(state);
+                break;
             }
         }
         CFRelease(printers);
-    }	
+    }
     [printer release];
     
     returnValue.setReturn(pResult);
@@ -441,14 +473,20 @@ void CP_XML_Get_page_format(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_TEXT returnValue;
     
-    NSData *data = nil;
-    PMPageFormatCreateDataRepresentation(PMPageFormatCurrent, (CFDataRef *)&data, kPMDataFormatXMLMinimal);
+    PMPageFormat format = PMPageFormatCurrent;
+    CFDataRef data = NULL; // Create rule: owned, released below
     
-    if(data){
-        NSString *xml = [[NSString alloc]initWithBytes:[data bytes] length:[data length] encoding:NSUTF8StringEncoding];
-        returnValue.setUTF16String(xml);
+    if(format
+       && PMPageFormatCreateDataRepresentation(format, &data, kPMDataFormatXMLMinimal) == noErr
+       && data)
+    {
+        NSString *xml = [[NSString alloc]initWithBytes:CFDataGetBytePtr(data) length:CFDataGetLength(data) encoding:NSUTF8StringEncoding];
+        if(xml)
+            returnValue.setUTF16String(xml);
         [xml release];
     }
+    if(data)
+        CFRelease(data);
     
     returnValue.setReturn(pResult);
 }
@@ -457,16 +495,20 @@ void CP_XML_Get_print_settings(sLONG_PTR *pResult, PackagePtr pParams)
 {
     C_TEXT returnValue;
     
-    NSData *data = nil;
+    PMPrintSettings settings = PMPrintSettingsCurrent;
+    CFDataRef data = NULL; // Create rule: owned, released below
     
-    PMPrintSettingsCreateDataRepresentation(PMPrintSettingsCurrent, (CFDataRef *)&data, kPMDataFormatXMLMinimal);
-    
-    if(data){
-        NSString *xml = [[NSString alloc]initWithBytes:[data bytes] length:[data length] encoding:NSUTF8StringEncoding];
-        returnValue.setUTF16String(xml);
+    if(settings
+       && PMPrintSettingsCreateDataRepresentation(settings, &data, kPMDataFormatXMLMinimal) == noErr
+       && data)
+    {
+        NSString *xml = [[NSString alloc]initWithBytes:CFDataGetBytePtr(data) length:CFDataGetLength(data) encoding:NSUTF8StringEncoding];
+        if(xml)
+            returnValue.setUTF16String(xml);
         [xml release];
     }
-    
+    if(data)
+        CFRelease(data);
     
     returnValue.setReturn(pResult);
 }
@@ -481,12 +523,17 @@ void CP_XML_SET_PAGE_FORMAT(sLONG_PTR *pResult, PackagePtr pParams)
     
     NSData *data = [xml dataUsingEncoding:(NSStringEncoding)NSUTF8StringEncoding];
     if(data){
-        PMPageFormat newPrintFormat;
-        PMPageFormatCreateWithDataRepresentation((CFDataRef)data, &newPrintFormat);
-        PMPageFormat oldPrintFormat = (PMPageFormat)PA_GetCarbonPageFormat();	
-        if(oldPrintFormat)
-            PMCopyPageFormat(newPrintFormat, oldPrintFormat);
+        PMPageFormat newPageFormat = kPMNoPageFormat;
+        if(PMPageFormatCreateWithDataRepresentation((CFDataRef)data, &newPageFormat) == noErr
+           && newPageFormat != kPMNoPageFormat)
+        {
+            PMPageFormat oldPageFormat = PMPageFormatCurrent;
+            if(oldPageFormat)
+                PMCopyPageFormat(newPageFormat, oldPageFormat);
+            PMRelease(newPageFormat);
+        }
     }
+    [xml release];
 }
 
 void CP_XML_SET_PRINT_SETTINGS(sLONG_PTR *pResult, PackagePtr pParams)
@@ -499,10 +546,15 @@ void CP_XML_SET_PRINT_SETTINGS(sLONG_PTR *pResult, PackagePtr pParams)
     
     NSData *data = [xml dataUsingEncoding:(NSStringEncoding)NSUTF8StringEncoding];
     if(data){
-        PMPrintSettings newPrintSettings;
-        PMPrintSettingsCreateWithDataRepresentation((CFDataRef)data, &newPrintSettings);
-        PMPrintSettings oldPrintSettings = (PMPrintSettings)PA_GetCarbonPrintSettings();	
-        if(oldPrintSettings)
-            PMCopyPrintSettings(newPrintSettings, oldPrintSettings);
+        PMPrintSettings newPrintSettings = kPMNoPrintSettings;
+        if(PMPrintSettingsCreateWithDataRepresentation((CFDataRef)data, &newPrintSettings) == noErr
+           && newPrintSettings != kPMNoPrintSettings)
+        {
+            PMPrintSettings oldPrintSettings = PMPrintSettingsCurrent;
+            if(oldPrintSettings)
+                PMCopyPrintSettings(newPrintSettings, oldPrintSettings);
+            PMRelease(newPrintSettings);
+        }
     }
+    [xml release];
 }
