@@ -1,0 +1,8 @@
+.DS_Store
+build/
+*.4dbase/Logs/
+*.4dbase/userPreferences.*/
+/Core Printing.dmg
+/Core Printing.zip
+Core Printing.4dbase/Plugins/Core Printing.bundle/Contents/MacOS/Core Printing
+Core Printing.4dbase/Plugins/Core Printing.bundle/Contents/_CodeSignature/
