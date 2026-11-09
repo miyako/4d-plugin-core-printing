@@ -3,6 +3,62 @@
 
 Read and change 4D's current print settings on macOS through the Core Printing API (`PMPageFormat` / `PMPrintSettings`), list the printers known to the system, and save or restore the whole print configuration as XML text. The plugin works on the same page format and print settings objects that 4D itself uses for `PRINT SETTINGS`, `PRINT RECORD`, `Print form` and the other print commands, so a value you set here is what the next 4D print job uses. Results are `Longint`, `Real` and `Text` values, plus two `Text` arrays for the printer list.
 
+## Maintainer release workflow
+
+**Bump version** is manual: select the source branch in Actions and choose `patch`,
+`minor`, or `major`. It checks out the immutable dispatch commit, validates the
+coordinated source metadata, and pushes exactly one source-only commit to that
+branch. It creates no tag and starts no Build. The branch must still advertise
+the selected SHA; a missing/nonexecutable pre-push guard or any intervening
+advance, rewind, deletion, or same-result update fails closed. Pushes are
+nonforce and disable following tags, including repository-level defaults.
+
+**Build** is a separate manual workflow with **zero inputs**. Select the branch
+or commit to build in Actions; every checkout uses the dispatch's `github.sha`.
+The strict source `X.Y.Z` determines the new `vX.Y.Z` tag and the
+`Core Printing-X.Y.Z.zip` / `Core Printing-X.Y.Z.dmg` assets. Publication is
+serialized across branches without cancelling a running build. It checks remote
+tags and all authenticated release-list pages (including drafts) both before
+building and after the universal build, verification, signing, notarization, and
+DMG stapling have succeeded. API/auth/network/malformed-response failures are
+errors, not proof of absence.
+
+Source authority is coordinated `MARKETING_VERSION` and
+`CURRENT_PROJECT_VERSION` (three configurations each), root `Info.plist`, and
+`English.lproj/InfoPlist.strings`. The modernization commit `c9709c3` introduced
+both project keys at `14.3.0`, matching the root plist; its Bump header explicitly
+promised coordination of both keys despite updating only one in its old body.
+This migration keeps `14.3.0` and repairs only the stale localized `1.0` metadata.
+Applicable literal version fields co-bump; supported Xcode references, absent
+`CFBundleVersion`, BOM, line endings, and file modes are preserved. Committed
+prebuilt bundle metadata/binaries, 4D database files, localization counters,
+manifest/schema versions, and the bundled 4D SDK are not source-release fields.
+
+Publication is create-only: POST a new exact-SHA Git ref, verify it remotely,
+POST a new public non-prerelease release with the original empty-notes policy,
+then upload assets separately to the returned new release ID. Existing tags or
+draft/published releases are never reused, even for the same SHA. There is no
+DELETE, PATCH, overwrite, clobber, rollback, or automatic retry.
+
+**Recovery:** a failure may retain the tag, release, and already uploaded assets.
+Inspect the failed step and the remote state, including drafts, before deciding
+on a manual recovery. Do not blindly rerun Build for the same version: retained
+state intentionally blocks it. Maintainers must explicitly resolve any partial
+publication outside these workflows or choose a new source version via Bump.
+
+Native behavior is unchanged: macOS uses the committed 4D SDK, Carbon/Core
+Printing headers, and system Cocoa, AppKit, and CoreGraphics frameworks, targets macOS `11.5`, and builds both
+`arm64` and `x86_64`. The existing prebuilt-library and resource checks remain.
+The committed Windows64 `.4DX` ships as-is; there is no Windows build or new
+branch restriction. Modern Xcode compatibility of the legacy SDK/Core Printing
+APIs and validity of the prebuilt Windows binary remain native caveats, not
+reasons to bypass build/signing/notary/staple gates. Certificate and notary secret
+names and packaging/resources are unchanged.
+
+Local workflow regressions (no native build or signing):
+`python3 -B -m unittest discover -s .github/tests -v` and
+`actionlint .github/workflows/*.yml`.
+
 | Command | Returns | Purpose |
 |:--|:--|:--|
 | [CP Get orientation](#cp-get-orientation) | `Longint` | Page orientation of the current page format |
