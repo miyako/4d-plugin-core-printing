@@ -691,6 +691,11 @@ $settings:=CP XML Get print settings
 CP XML SET PRINT SETTINGS ($settings)
 ```
 
+## Native development
+
+See [the device-free ownership regression and audit inventory](tests/README.md)
+for unsigned macOS checks using the actual wrappers and bundled SDK.
+
 ---
 
 ## CP XML SET PAGE FORMAT
